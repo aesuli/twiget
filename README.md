@@ -34,7 +34,7 @@ By default, a `data` subdirectory is created in the current working directory.
 > twiget-cli -s ./save_dir
 ```
 
-####prompt
+#### prompt
 When started, twiget-cli shown the available commands, and the queries currently registered for the given bearer token (queries are permanently stored on Twitter's servers).
 ```
 TwiGet 0.1.1
@@ -53,7 +53,7 @@ The command prompt tells if twiget-cli is currently collecting tweets, the numbe
 When collecting tweets, the prompt is automatically refreshed every time a given number of tweets is collected (see [the refresh command](#refresh)).
 ### Commands
 
-####create
+#### create
 
 Format:
 ```
@@ -72,7 +72,7 @@ Tweets matching the query "jow biden" will be saved in the file data/usa.json
 ID=1395720345987340524
 ```
 
-####list
+#### list
 Format:
 ```
 > list
@@ -88,7 +88,7 @@ Registered queries:
 	ID=1395720345987340524	query="joe biden"	tag="usa"
 ```
 
-####delete
+#### delete
 Format:
 ```
 > delete <ID>
@@ -100,7 +100,7 @@ Example:
 [not collecting (0 since last start), save path "data"]> delete 1385892384573355842
 ```
 
-####start
+#### start
 Format:
 ```
 > start
@@ -118,7 +118,7 @@ Example:
 [not collecting (0 since last start), save path "data"]> start
 [collecting (0 since last start), save path "data"]>
 ```
-####stop
+#### stop
 Format:
 ```
 > stop
@@ -131,7 +131,7 @@ Example:
 [not collecting (3152 since last start), save path "data"]> 
 ```
 
-####save_to
+#### save_to
 Format:
 ```
 > save_to <path>
@@ -145,7 +145,7 @@ Example:
 [not collecting (0 since last start), save path "data"]> save_to ../my_project
 [not collecting (0 since last start), save path "../my_project"]> 
 ```
-####size
+#### size
 Format:
 ```
 > size <size>
@@ -157,7 +157,7 @@ Example:
 ```
 [not collecting (0 since last start), save path "data"]> size 1000000
 ```
-####refresh
+#### refresh
 Format:
 ```
 > refresh <count>
