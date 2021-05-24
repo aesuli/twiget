@@ -1,4 +1,4 @@
-#TwiGet
+# TwiGet
 
 TwiGet is a python package for the management of the queries on filtered stream of the Twitter API, and the collection of tweets from it.
 
