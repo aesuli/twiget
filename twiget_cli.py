@@ -12,27 +12,14 @@ import twiget
 from twiget import TwiGet
 
 
-class TwiGetCLI(Cmd):
+class TwiGetCLIBase(Cmd):
     MIN_REFRESH = 10
     DEFAULT_REFRESH = 1000
-    DEFAULT_SAVE_PATH = Path('data')
-    MIN_MAX_FILE_SIZE = 1024 * 100
-    DEFAULT_MAX_FILE_SIZE = 1024 * 1024 * 10
 
-    def __init__(self, bearer: str, save_path: Path = None):
+    def __init__(self, bearer: str):
         super().__init__()
 
         self._twiget = TwiGet(bearer)
-
-        self._max_file_size = self.DEFAULT_MAX_FILE_SIZE
-
-        if save_path is None:
-            save_path = self.DEFAULT_SAVE_PATH
-        save_path.mkdir(exist_ok=True)
-        self._save_path = save_path
-        self._files: Dict[str, TextIO] = dict()
-        self._files_lock = Lock()
-        self._twiget.add_callback('save_to_file', self._save_to_file)
 
         self._refresh = self.DEFAULT_REFRESH
         self._count = 0
@@ -45,6 +32,125 @@ class TwiGetCLI(Cmd):
         print()
         self.do_list('')
         print()
+
+    def _counter(self, data):
+        self._count += 1
+        if self._count % self._refresh == 0:
+            print(os.linesep + self.prompt, end='')
+
+    @property
+    def prompt(self) -> str:
+        return f'[{"collecting" if self._twiget.is_getting_stream() else "not collecting"} ({self._count} since last start)]> '
+
+    def emptyline(self):
+        pass
+
+    def do_exit(self, args):
+        if self._twiget.is_getting_stream():
+            print('Stopping collection of tweets.')
+            self._twiget.stop_getting_stream()
+        sys.exit(0)
+
+    def help_exit(self):
+        print('Exit the program')
+
+    def do_list(self, args):
+        data = self._twiget.get_rules()
+        data = data.get('data', None)
+        print('Registered queries:')
+        found = False
+        if data:
+            for entry in data:
+                found = True
+                print(f"\tID={entry['id']}\tquery=\"{entry['value']}\"\ttag=\"{entry['tag']}\"")
+        if not found:
+            print('\tno registered queries')
+
+    def help_list(self):
+        print(
+            'Lists the queries, their ID and their tag, currently registered for the filtered stream.')
+
+    def do_start(self, args):
+        self._count = 0
+        self._twiget.start_getting_stream()
+
+    def help_start(self):
+        print('Starts the collection of tweets. Continues if already collecting (resets counter).')
+
+    def do_stop(self, args):
+        self._twiget.stop_getting_stream()
+
+    def help_stop(self):
+        print('Stops the collection of tweets. Nothing happens if already not collecting.')
+
+    def do_create(self, args):
+        values = args.split(' ', 1)
+        if len(values) != 2:
+            print('Create command requires a tag and a query.')
+        else:
+            answer = self._twiget.add_rule(values[1], values[0])
+            print(f"ID={answer['data'][0]['id']}")
+
+    def help_create(self):
+        print('Creates a filtering rule, associated to a given tag name.')
+        print(
+            'Info on how to define rules at https://developer.twitter.com/en/docs/twitter-api/tweets/filtered-stream/integrate/build-a-rule')
+        print('Collected tweets are saved in json format in a file named <tag>.json, in the given save path.')
+        print('Tag name is the first argument and cannot contain spaces.')
+        print('Any word after the tag defines the query.')
+        print('Format:')
+        print('\t>create <tag> <query>')
+        print('Example:')
+        print('\t>create usa joe biden')
+        print('\tTweets matching the query "joe biden" will be saved in the file <save_path>/usa.json')
+
+    def do_delete(self, args):
+        answer = self._twiget.delete_rules([args])
+        if 'errors' in answer:
+            print(f'Error: {answer["errors"][0]["message"]}')
+
+    def help_delete(self):
+        print('Deletes filtering rules with the given ID.')
+        print('ID of rules can be obtained by using the list command.')
+        print('Format:')
+        print('\t>delete <ID>')
+
+    def do_refresh(self, args):
+        if len(args):
+            try:
+                value = int(args)
+                if value >= self.MIN_REFRESH:
+                    self._refresh = value
+                else:
+                    print(f'Refresh value cannot be smaller than {self.MIN_REFRESH}')
+            except ValueError:
+                print(f'Cannot parse {args} into an integer number.')
+        print(f'Automatically refreshing prompt every {self._refresh} collected tweets.')
+
+    def help_refresh(self):
+        print(
+            f'Sets the refresh rate, i.e. how many collected tweets trigger an automatic refresh of the prompt (default: {self.DEFAULT_REFRESH}).')
+        print('Format:')
+        print('\t>refresh <number>')
+
+
+class TwiGetCLI(TwiGetCLIBase):
+    DEFAULT_SAVE_PATH = Path('data')
+    MIN_MAX_FILE_SIZE = 1024 * 100
+    DEFAULT_MAX_FILE_SIZE = 1024 * 1024 * 10
+
+    def __init__(self, bearer: str, save_path: Path = None):
+        super().__init__(bearer)
+
+        self._max_file_size = self.DEFAULT_MAX_FILE_SIZE
+
+        if save_path is None:
+            save_path = self.DEFAULT_SAVE_PATH
+        save_path.mkdir(exist_ok=True)
+        self._save_path = save_path
+        self._files: Dict[str, TextIO] = dict()
+        self._files_lock = Lock()
+        self._twiget.add_callback('save_to_file', self._save_to_file)
 
     def __enter__(self):
         return self
@@ -94,55 +200,9 @@ class TwiGetCLI(Cmd):
             json.dump(data, output_file)
             print(file=output_file)
 
-    def _counter(self, data):
-        self._count += 1
-        if self._count % self._refresh == 0:
-            print(os.linesep + self.prompt, end='')
-
     @property
     def prompt(self) -> str:
         return f'[{"collecting" if self._twiget.is_getting_stream() else "not collecting"} ({self._count} since last start), save path \"{self._save_path}\"]> '
-
-    def emptyline(self):
-        pass
-
-    def do_exit(self, args):
-        if self._twiget.is_getting_stream():
-            print('Stopping collection of tweets.')
-            self._twiget.stop_getting_stream()
-        sys.exit(0)
-
-    def help_exit(self):
-        print('Exit the program')
-
-    def do_list(self, args):
-        data = self._twiget.get_rules()
-        data = data.get('data', None)
-        print('Registered queries:')
-        found = False
-        if data:
-            for entry in data:
-                found = True
-                print(f"\tID={entry['id']}\tquery=\"{entry['value']}\"\ttag=\"{entry['tag']}\"")
-        if not found:
-            print('\tno registered queries')
-
-    def help_list(self):
-        print(
-            'Lists the queries, their ID and their tag, currently registered for the filtered stream.')
-
-    def do_start(self, args):
-        self._count = 0
-        self._twiget.start_getting_stream()
-
-    def help_start(self):
-        print('Starts the collection of tweets. Continues if already collecting (resets counter).')
-
-    def do_stop(self, args):
-        self._twiget.stop_getting_stream()
-
-    def help_stop(self):
-        print('Stops the collection of tweets. Nothing happens if already not collecting.')
 
     def do_create(self, args):
         values = args.split(' ', 1)
@@ -153,29 +213,6 @@ class TwiGetCLI(Cmd):
                 f'Tweets matching the query "{values[1]}" will be saved in the file {self._save_path}/{values[0]}.json')
             answer = self._twiget.add_rule(values[1], values[0])
             print(f"ID={answer['data'][0]['id']}")
-
-    def help_create(self):
-        print('Creates a filtering rule, associated to a given tag name.')
-        print('Info on how to define rules at https://developer.twitter.com/en/docs/twitter-api/tweets/filtered-stream/integrate/build-a-rule')
-        print('Collected tweets are saved in json format in a file named <tag>.json, in the given save path.')
-        print('Tag name is the first argument and cannot contain spaces.')
-        print('Any word after the tag defines the query.')
-        print('Format:')
-        print('\t>create <tag> <query>')
-        print('Example:')
-        print('\t>create usa joe biden')
-        print('\tTweets matching the query "joe biden" will be saved in the file <save_path>/usa.json')
-
-    def do_delete(self, args):
-        answer = self._twiget.delete_rules([args])
-        if 'errors' in answer:
-            print(f'Error: {answer["errors"][0]["message"]}')
-
-    def help_delete(self):
-        print('Deletes filtering rules with the given ID.')
-        print('ID of rules can be obtained by using the list command.')
-        print('Format:')
-        print('\t>delete <ID>')
 
     def do_save_to(self, args):
         new_path = Path(args)
@@ -197,24 +234,6 @@ class TwiGetCLI(Cmd):
         print('If the path does not exist it is created.')
         print('Format:')
         print('\t>save_to <path>')
-
-    def do_refresh(self, args):
-        if len(args):
-            try:
-                value = int(args)
-                if value >= self.MIN_REFRESH:
-                    self._refresh = value
-                else:
-                    print(f'Refresh value cannot be smaller than {self.MIN_REFRESH}')
-            except ValueError:
-                print(f'Cannot parse {args} into an integer number.')
-        print(f'Automatically refreshing prompt every {self._refresh} collected tweets.')
-
-    def help_refresh(self):
-        print(
-            f'Sets the refresh rate, i.e. how many collected tweets trigger an automatic refresh of the prompt (default: {self.DEFAULT_REFRESH}).')
-        print('Format:')
-        print('\t>refresh <number>')
 
     def do_size(self, args):
         if len(args):

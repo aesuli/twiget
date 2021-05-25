@@ -169,6 +169,11 @@ Example:
 [not collecting (0 since last start), save path "data"]> refresh 10000
 ```
 
+### Implementing a custom command line tool
+
+The `TwiGetCLIBase` class in `twiget_cli.py` module implements all the above fuctions except those related to saving to json file (i.e. `save_to` and `size`).
+It can be used to implement a command line tool that performs a different processing of the collected data, e.g., saving to a db.
+
 
 ## Python class: TwiGet
 
@@ -215,7 +220,7 @@ print(answer)
 
 # Getting callbacks
 callbacks = collector.get_callbacks()
-# returns a list with the names of the callbacks.
+# returns a list of pairs with the name of the callback and the callback method.
 print(callbacks)
 
 # Delete a callback
