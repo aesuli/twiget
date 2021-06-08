@@ -3,6 +3,7 @@ from json import JSONDecodeError
 from threading import Lock, Thread
 
 import requests
+from requests.exceptions import ChunkedEncodingError
 
 
 class TwiGet:
@@ -42,17 +43,21 @@ class TwiGet:
 
     def _get_stream(self):
         headers = {'Content-type': 'application/json', 'Authorization': f'Bearer {self._bearer}'}
-        with requests.get('https://api.twitter.com/2/tweets/search/stream', headers=headers, stream=True) as stream:
-            for line in stream.iter_lines():
+        while not self._stop:
+            with requests.get('https://api.twitter.com/2/tweets/search/stream', headers=headers, stream=True) as stream:
                 try:
-                    data = json.loads(line.decode())
-                except JSONDecodeError:
-                    data = None
-                if data:
-                    for callback_key in self._callbacks:
-                        self._callbacks[callback_key](data)
-                if self._stop:
-                    break
+                    for line in stream.iter_lines():
+                        try:
+                            data = json.loads(line.decode())
+                        except JSONDecodeError:
+                            data = None
+                        if data:
+                            for callback_key in self._callbacks:
+                                self._callbacks[callback_key](data)
+                        if self._stop:
+                            break
+                except ChunkedEncodingError:
+                    pass
 
     def start_getting_stream(self):
         with self._lock:
