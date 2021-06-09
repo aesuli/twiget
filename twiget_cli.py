@@ -30,6 +30,7 @@ class TwiGetCLIBase(Cmd):
         print('Available commands (type help <command> for details):')
         print(', '.join([name[3:] for name in self.get_names() if name[:3] == 'do_']))
         print()
+        print('Reminder: add -is:retweet to a rule to exclude retweets from results, and to get only original content.')
         self.do_list('')
         print()
 
@@ -98,6 +99,7 @@ class TwiGetCLIBase(Cmd):
         print('Collected tweets are saved in json format in a file named <tag>.json, in the given save path.')
         print('Tag name is the first argument and cannot contain spaces.')
         print('Any word after the tag defines the query.')
+        print('Reminder: add -is:retweet to a rule to exclude retweets from results, and to get only original content.')
         print('Format:')
         print('\t>create <tag> <query>')
         print('Example:')
