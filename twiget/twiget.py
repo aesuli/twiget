@@ -1,4 +1,5 @@
 import json
+import logging
 from json import JSONDecodeError
 from threading import Lock, Thread
 
@@ -53,7 +54,11 @@ class TwiGet:
                             data = None
                         if data:
                             for callback_key in self._callbacks:
-                                self._callbacks[callback_key](data)
+                                try:
+                                    self._callbacks[callback_key](data)
+                                except Exception as e:
+                                    logging.error(
+                                        f'Callback "{callback_key}" raised an exception. {type(e)}: {e.args[0]}')
                         if self._stop:
                             break
                 except ChunkedEncodingError:
